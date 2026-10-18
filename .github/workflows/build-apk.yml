@@ -35,9 +35,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: |
-            platforms;android-34
-            build-tools;34.0.0
+          packages: "platforms;android-34 build-tools;34.0.0"
 
       - name: Install Node dependencies
         run: npm ci
@@ -61,7 +59,7 @@ jobs:
         run: |
           cat >> android/app/build.gradle <<'EOF'
 
-          // Injected by CI workflow — signs the release APK with a generated
+          // Injected by CI workflow - signs the release APK with a generated
           // debug keystore so the output can be sideloaded on any device.
           if (project.hasProperty('revivaKeystore')) {
             android.signingConfigs {
