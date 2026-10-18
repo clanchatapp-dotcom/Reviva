@@ -1,0 +1,103 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platforms;android-34
+            build-tools;34.0.0
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build web assets
+        run: npm run build
+
+      - name: Sync Capacitor (copy assets to Android)
+        run: npx cap sync android
+
+      - name: Generate debug keystore for release signing
+        run: |
+          keytool -genkeypair -v \
+            -keystore ${{ github.workspace }}/release.keystore \
+            -storepass reviva123 -keypass reviva123 \
+            -alias reviva-key -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Reviva, OU=App, O=Reviva Studio, L=NA, S=NA, C=US"
+
+      - name: Configure Gradle for signed release
+        run: |
+          cat >> android/app/build.gradle <<'EOF'
+
+          // Injected by CI workflow — signs the release APK with a generated
+          // debug keystore so the output can be sideloaded on any device.
+          if (project.hasProperty('revivaKeystore')) {
+            android.signingConfigs {
+              release {
+                storeFile file(project.revivaKeystore)
+                storePassword 'reviva123'
+                keyAlias 'reviva-key'
+                keyPassword 'reviva123'
+              }
+            }
+            android.buildTypes.release.signingConfig android.signingConfigs.release
+          }
+          EOF
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x android/gradlew
+
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew assembleRelease -PrevivaKeystore=${{ github.workspace }}/release.keystore --no-daemon
+
+      - name: Rename APK
+        run: |
+          mkdir -p artifacts
+          cp android/app/build/outputs/apk/release/app-release.apk artifacts/reviva.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reviva-apk
+          path: artifacts/reviva.apk
+          retention-days: 30
+
+      - name: Summary
+        run: |
+          echo "### APK Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download the artifact \`reviva-apk\` from the workflow run page." >> $GITHUB_STEP_SUMMARY
+          echo "The file is named \`reviva.apk\` — sideload it onto your Android device." >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Reviva</string>
+    <string name="title_activity_main">Reviva</string>
+    <string name="package_name">studio.reviva.app</string>
+    <string name="custom_url_scheme">studio.reviva.app</string>
+</resources>
