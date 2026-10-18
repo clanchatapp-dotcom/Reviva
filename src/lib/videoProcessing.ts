@@ -81,20 +81,29 @@ export async function processVideo(
   p('Preparing encoder', 0.03);
 
   // Set up MediaRecorder from canvas stream
+  if (typeof outCanvas.captureStream !== 'function') {
+    throw new Error('captureStream not supported in this environment');
+  }
   const stream = outCanvas.captureStream(targetFps);
-  // Try to add audio track from the original video
-  let audioStream: MediaStream | null = null;
+
+  // Try to add audio track from the original video (best-effort)
   try {
-    // Use captureStream on the video element to get audio
     const anyVideo = video as unknown as { captureStream?: () => MediaStream; mozCaptureStream?: () => MediaStream };
-    if (anyVideo.captureStream) audioStream = anyVideo.captureStream();
-    else if (anyVideo.mozCaptureStream) audioStream = anyVideo.mozCaptureStream();
+    let audioStream: MediaStream | null = null;
+    if (typeof anyVideo.captureStream === 'function') audioStream = anyVideo.captureStream();
+    else if (typeof anyVideo.mozCaptureStream === 'function') audioStream = anyVideo.mozCaptureStream();
     if (audioStream) {
       const audioTracks = audioStream.getAudioTracks();
-      for (const t of audioTracks) stream.addTrack(t);
+      // Only add audio tracks if they exist and stream supports adding tracks
+      for (const t of audioTracks) {
+        try { stream.addTrack(t); } catch (e) { /* skip adding audio if not permitted */ }
+      }
     }
-  } catch { /* no audio, continue */ }
+  } catch {
+    // continue without audio
+  }
 
+  // Pick a supported mimeType if possible. If not detectable, let the browser choose.
   const mimeCandidates = [
     'video/webm;codecs=vp9,opus',
     'video/webm;codecs=vp8,opus',
@@ -102,20 +111,47 @@ export async function processVideo(
     'video/webm;codecs=vp8',
     'video/webm',
   ];
-  const mimeType = mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || 'video/webm';
 
-  const recorder = new MediaRecorder(stream, {
-    mimeType,
-    videoBitsPerSecond: Math.min(12_000_000, outW * outH * targetFps * 0.15),
-  });
+  let mimeType: string | undefined = undefined;
+  if (typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.isTypeSupported === 'function') {
+    for (const m of mimeCandidates) {
+      try {
+        if (MediaRecorder.isTypeSupported(m)) { mimeType = m; break; }
+      } catch { /* ignore */ }
+    }
+  }
+
+  const recorderOptions: any = { videoBitsPerSecond: Math.min(12_000_000, outW * outH * targetFps * 0.15) };
+  if (mimeType) recorderOptions.mimeType = mimeType;
+
+  let recorder: MediaRecorder;
   const chunks: Blob[] = [];
+
+  try {
+    // Try with options (preferred) and fall back to defaults if that fails.
+    recorder = new MediaRecorder(stream, recorderOptions);
+  } catch (err) {
+    try {
+      recorder = new MediaRecorder(stream);
+    } catch (err2) {
+      // If MediaRecorder cannot be constructed, fail with a helpful error.
+      throw new Error('MediaRecorder not supported or cannot be started on this device');
+    }
+  }
+
   recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
 
   const recordingDone = new Promise<Blob>((resolve) => {
-    recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
+    recorder.onstop = () => resolve(new Blob(chunks, { type: recorder.mimeType || (mimeType ?? 'video/webm') }));
   });
 
-  recorder.start();
+  try {
+    recorder.start();
+  } catch (e) {
+    // Some platforms may throw on start with certain options; try without options already attempted.
+    recorder.stop();
+    throw new Error('Failed to start MediaRecorder on this device');
+  }
   const startTime = performance.now();
 
   // Process frames
@@ -146,13 +182,12 @@ export async function processVideo(
   const blob = await recordingDone;
 
   // Cleanup
-  stream.getTracks().forEach((t) => t.stop());
-  if (audioStream) audioStream.getTracks().forEach((t) => t.stop());
+  try { stream.getTracks().forEach((t) => t.stop()); } catch { }
   URL.revokeObjectURL(video.src);
 
   return {
     blob,
-    mimeType,
+    mimeType: recorder?.mimeType || mimeType || 'video/webm',
     durationSec: (performance.now() - startTime) / 1000,
     width: outW,
     height: outH,
