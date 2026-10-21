@@ -1,5 +1,5 @@
-import { RotateCcw, Wand2 } from 'lucide-react';
-import { RestoreOptions } from '@/lib/imageProcessing';
+import { RotateCcw, Wand2, SunDim, Wind } from 'lucide-react';
+import { RestoreOptions, DEFAULT_OPTIONS } from '@/lib/imageProcessing';
 
 interface Props {
   options: RestoreOptions;
@@ -36,6 +36,31 @@ export function RestoreControls({ options, onChange, autoColorize, onAutoColoriz
     <div>
       <Slider label="Upscale" value={options.upscale} min={1} max={4} step={1}
         onChange={(v) => set('upscale', v)} display={`${options.upscale}x`} />
+
+      <div className="h-px bg-ink-800 my-4" />
+
+      <div className="mb-4">
+        <div className="flex justify-between items-baseline mb-1.5">
+          <label className="text-sm text-ink-200 flex items-center gap-1.5">
+            <SunDim className="w-3.5 h-3.5 text-gold-400" /> Local contrast
+          </label>
+          <span className="text-xs text-ink-400 font-mono tabular-nums">{options.clahe}%</span>
+        </div>
+        <input type="range" min={0} max={100} value={options.clahe}
+          onChange={(e) => set('clahe', Number(e.target.value))} />
+        <p className="text-[11px] text-ink-500 mt-1.5 leading-snug">Brings out detail hidden in faded, flat areas — the biggest visual change.</p>
+      </div>
+      <div className="mb-4">
+        <div className="flex justify-between items-baseline mb-1.5">
+          <label className="text-sm text-ink-200 flex items-center gap-1.5">
+            <Wind className="w-3.5 h-3.5 text-teal-400" /> Dehaze
+          </label>
+          <span className="text-xs text-ink-400 font-mono tabular-nums">{options.dehaze}%</span>
+        </div>
+        <input type="range" min={0} max={100} value={options.dehaze}
+          onChange={(e) => set('dehaze', Number(e.target.value))} />
+        <p className="text-[11px] text-ink-500 mt-1.5 leading-snug">Removes the foggy, yellowed veil over old photos.</p>
+      </div>
 
       <div className="h-px bg-ink-800 my-4" />
 
@@ -87,7 +112,7 @@ export function RestoreControls({ options, onChange, autoColorize, onAutoColoriz
       </label>
 
       <button
-        onClick={() => onChange({ ...{ upscale: 2, denoise: 35, sharpen: 45, colorize: 0, repair: 30, brighten: 8, contrast: 12, saturation: 10, warmTint: 6, faceProtect: true } })}
+        onClick={() => onChange({ ...DEFAULT_OPTIONS })}
         className="mt-5 w-full py-2 rounded-lg text-sm text-ink-300 hover:text-ink-100 border border-ink-700 hover:border-ink-600 transition-colors flex items-center justify-center gap-1.5"
       >
         <RotateCcw className="w-3.5 h-3.5" /> Reset all

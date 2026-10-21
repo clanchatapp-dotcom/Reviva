@@ -31,6 +31,8 @@ export function DocumentStudio({ onSave }: Props) {
     contrast: 20,
     saturation: -20,
     warmTint: 0,
+    clahe: 75,
+    dehaze: 50,
   });
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState<{ stage: string; pct: number }>({ stage: '', pct: 0 });
@@ -336,8 +338,10 @@ export function DocumentStudio({ onSave }: Props) {
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-display text-lg font-medium">Enhance</h2>
             <button onClick={() => setOptions({
-              ...DEFAULT_OPTIONS, upscale: 2, denoise: 25, sharpen: 55, repair: 45, colorize: 0,
+              ...DEFAULT_OPTIONS,
+              upscale: 2, denoise: 25, sharpen: 55, repair: 45, colorize: 0,
               brighten: 15, contrast: 20, saturation: -20, warmTint: 0,
+              clahe: 75, dehaze: 50,
             })} className="text-xs text-ink-400 hover:text-ink-100">Reset</button>
           </div>
           <RestoreControls options={options} onChange={setOptions} autoColorize={autoColorize} onAutoColorizeChange={setAutoColorize} />

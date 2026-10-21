@@ -13,7 +13,9 @@ export function VideoStudio({ onSave }: Props) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [resultBlob, setResultBlob] = useState<Blob | null>(null);
-  const [options, setOptions] = useState<RestoreOptions>({ ...DEFAULT_OPTIONS, upscale: 1, repair: 25, denoise: 30, sharpen: 35 });
+  const [options, setOptions] = useState<RestoreOptions>({
+    ...DEFAULT_OPTIONS, upscale: 1, repair: 25, denoise: 30, sharpen: 35, clahe: 55, dehaze: 45,
+  });
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState<{ stage: string; pct: number; frame?: { current: number; total: number } }>({ stage: '', pct: 0 });
   const [fileName, setFileName] = useState('restored-video');
@@ -213,7 +215,7 @@ export function VideoStudio({ onSave }: Props) {
         <div className="glass rounded-2xl border border-ink-800 p-5 max-h-[calc(100vh-180px)] overflow-y-auto no-scrollbar">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-display text-lg font-medium">Settings</h2>
-            <button onClick={() => setOptions({ ...DEFAULT_OPTIONS, upscale: 1 })} className="text-xs text-ink-400 hover:text-ink-100">Reset</button>
+            <button onClick={() => setOptions({ ...DEFAULT_OPTIONS, upscale: 1, repair: 25, denoise: 30, sharpen: 35, clahe: 55, dehaze: 45 })} className="text-xs text-ink-400 hover:text-ink-100">Reset</button>
           </div>
           <RestoreControls options={options} onChange={setOptions} autoColorize={autoColorize} onAutoColorizeChange={setAutoColorize} />
         </div>
